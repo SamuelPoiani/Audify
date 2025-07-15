@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audify - MKV Audio Extractor</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="titlebar">
+        <div class="navigation-controls">
+            <button class="nav-button" id="backBtn" disabled>
+                <svg width="12" height="12" viewBox="0 0 12 12">
+                    <path d="M7 3L4 6L7 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                </svg>
+            </button>
+            <button class="nav-button" id="forwardBtn" disabled>
+                <svg width="12" height="12" viewBox="0 0 12 12">
+                    <path d="M5 3L8 6L5 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                </svg>
+            </button>
+            <button class="nav-button" id="settingsBtn" title="Settings">
+                <svg width="12" height="12" viewBox="0 0 12 12">
+                    <path d="M6 7.5a1.5 1.5 0 100-3 1.5 1.5 0 000 3z" stroke="currentColor" stroke-width="1" fill="none"/>
+                    <path d="M9.5 6a3.5 3.5 0 11-7 0 3.5 3.5 0 017 0zM6 1v1M6 10v1M10.66 6h1M.34 6h1M9.54 2.46l-.71.71M3.17 8.83l-.71.71M9.54 9.54l-.71-.71M3.17 3.17l-.71-.71" stroke="currentColor" stroke-width="1" stroke-linecap="round"/>
+                </svg>
+            </button>
+        </div>
+        <div class="titlebar-drag-region"></div>
+        <div class="window-controls">
+            <button class="window-control" id="minimizeBtn">
+                <svg width="12" height="12" viewBox="0 0 12 12">
+                    <rect x="2" y="5" width="8" height="2" fill="currentColor"/>
+                </svg>
+            </button>
+            <button class="window-control" id="maximizeBtn">
+                <svg width="12" height="12" viewBox="0 0 12 12">
+                    <rect x="2" y="2" width="8" height="8" fill="none" stroke="currentColor" stroke-width="1.5"/>
+                </svg>
+            </button>
+            <button class="window-control close" id="closeBtn">
+                <svg width="12" height="12" viewBox="0 0 12 12">
+                    <path d="M3 3L9 9M9 3L3 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+    <div class="app-container">
+        <header class="app-header">
+            <h1 class="app-title">Audify</h1>
+            <p class="app-subtitle">Extract high-quality audio from video files</p>
+        </header>
+
+        <main class="main-content">
+            <div id="dropZone" class="drop-zone">
+                <div class="drop-zone-content">
+                    <div class="drop-icon">📁</div>
+                    <h2>Drop video files here</h2>
+                    <p>or click to select multiple files</p>
+                    <div class="supported-formats">
+                        <small>Supports: MP4, MKV, AVI, MOV, WMV, FLV, WebM, M4V, 3GP, OGV</small>
+                    </div>
+                </div>
+                <div class="format-controls">
+                    <div class="format-selector">
+                        <label for="outputFormat">Output Format:</label>
+                        <select id="outputFormat" class="format-select">
+                            <option value="flac">FLAC (Lossless)</option>
+                            <option value="wav">WAV (Uncompressed)</option>
+                            <option value="mp3">MP3 (320kbps)</option>
+                            <option value="aac">AAC (256kbps)</option>
+                            <option value="ogg">OGG Vorbis</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div id="queueArea" class="queue-area" style="display: none;">
+                <div class="queue-header">
+                    <div class="queue-title-section">
+                        <h3>Processing Queue</h3>
+                        <div class="queue-stats" id="queueStats"></div>
+                    </div>
+                    <button class="btn btn-secondary" id="queueBackBtn">
+                        <svg width="16" height="16" viewBox="0 0 16 16">
+                            <path d="M10 4L6 8L10 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                        </svg>
+                        <span>Back</span>
+                    </button>
+                </div>
+                <div class="queue-list" id="queueList"></div>
+                    <div class="file-item">
+                        <div class="file-info">
+                            <div class="file-name" id="fileName"></div>
+                            <!-- <div class="file-path" id="filePath"></div> -->
+                        </div>
+                        <div class="progress-container">
+                            <div class="progress-bar">
+                                <div class="progress-fill" id="progressFill"></div>
+                            </div>
+                            <div class="progress-text" id="progressText">0%</div>
+                        </div>
+                    </div>
+            </div>
+
+            <div id="resultArea" class="result-area" style="display: none;">
+                <div class="result-content">
+                    <div class="success-icon">✅</div>
+                    <h3>Audio extracted successfully</h3>
+                    <div class="output-info">
+                        <p><span id="outputPath"></span></p>
+                    </div>
+                    <button id="extractAnother" class="btn btn-primary">Extract Another</button>
+                </div>
+            </div>
+
+            <div id="errorArea" class="error-area" style="display: none;">
+                <div class="error-content">
+                    <div class="error-icon">❌</div>
+                    <h3>Extraction failed</h3>
+                    <div class="error-message" id="errorMessage"></div>
+                    <button id="tryAgain" class="btn btn-secondary">Try Again</button>
+                </div>
+            </div>
+
+            <div id="settingsArea" class="settings-area" style="display: none;">
+                <div class="settings-header">
+                    <h3>Settings</h3>
+                    <button class="btn btn-secondary" id="settingsBackBtn">
+                        <svg width="16" height="16" viewBox="0 0 16 16">
+                            <path d="M10 4L6 8L10 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                        </svg>
+                        <span>Back</span>
+                    </button>
+                </div>
+                <div class="settings-content">
+                    <div class="setting-group">
+                        <h4>Output Settings</h4>
+                        <div class="setting-item">
+                            <label for="defaultOutputFormat">Default Output Format:</label>
+                            <select id="defaultOutputFormat" class="setting-select">
+                                <option value="flac">FLAC (Lossless)</option>
+                                <option value="wav">WAV (Uncompressed)</option>
+                                <option value="mp3">MP3 (320kbps)</option>
+                                <option value="aac">AAC (256kbps)</option>
+                                <option value="ogg">OGG Vorbis</option>
+                            </select>
+                        </div>
+                        <div class="setting-item">
+                            <label for="outputDirectory">Output Directory:</label>
+                            <div class="directory-selector">
+                                <input type="text" id="outputDirectory" class="setting-input" placeholder="Same as source file" readonly>
+                                <button id="browseOutputDir" class="btn btn-secondary">Browse</button>
+                            </div>
+                            <small class="setting-help">Leave empty to save next to source files</small>
+                        </div>
+                    </div>
+                    
+                    <div class="setting-group">
+                        <h4>Quality Settings</h4>
+                        <div class="setting-item">
+                            <label for="mp3Quality">MP3 Bitrate:</label>
+                            <select id="mp3Quality" class="setting-select">
+                                <option value="128">128 kbps</option>
+                                <option value="192">192 kbps</option>
+                                <option value="256">256 kbps</option>
+                                <option value="320" selected>320 kbps</option>
+                            </select>
+                        </div>
+                        <div class="setting-item">
+                            <label for="aacQuality">AAC Bitrate:</label>
+                            <select id="aacQuality" class="setting-select">
+                                <option value="128">128 kbps</option>
+                                <option value="192">192 kbps</option>
+                                <option value="256" selected>256 kbps</option>
+                                <option value="320">320 kbps</option>
+                            </select>
+                        </div>
+                        <div class="setting-item">
+                            <label for="oggQuality">OGG Quality:</label>
+                            <select id="oggQuality" class="setting-select">
+                                <option value="3">Quality 3 (~112 kbps)</option>
+                                <option value="5" selected>Quality 5 (~160 kbps)</option>
+                                <option value="7">Quality 7 (~192 kbps)</option>
+                                <option value="9">Quality 9 (~256 kbps)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="setting-group">
+                        <h4>Processing Settings</h4>
+                        <div class="setting-item">
+                            <label for="processingDelay">Delay Between Files (seconds):</label>
+                            <select id="processingDelay" class="setting-select">
+                                <option value="0">No delay</option>
+                                <option value="1">1 second</option>
+                                <option value="1.5" selected>1.5 seconds</option>
+                                <option value="2">2 seconds</option>
+                                <option value="3">3 seconds</option>
+                            </select>
+                        </div>
+                        <div class="setting-item">
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="overwriteFiles" class="setting-checkbox">
+                                <label for="overwriteFiles">Overwrite existing files</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="settings-actions">
+                        <button id="resetSettings" class="btn btn-secondary">Reset to Defaults</button>
+                        <button id="saveSettings" class="btn btn-primary">Save Settings</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer class="app-footer">
+            <p>Powered by FFmpeg</p>
+        </footer>
+    </div>
+
+    <script src="renderer.js"></script>
+</body>
+</html>
