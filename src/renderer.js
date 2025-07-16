@@ -5,6 +5,7 @@ class AudifyApp {
         this.history = [];
         this.historyIndex = -1;
         this.isProcessing = false;
+        this.previousScreen = 'main';
         this.settings = this.loadSettings();
 
         this.initializeElements();
@@ -124,12 +125,24 @@ class AudifyApp {
         });
 
         this.settingsBtn.addEventListener('click', () => {
-            this.showSettings();
+
+            if (this.isSettingsVisible()) {
+                // Settings is open, close it and restore previous screen
+                this.hideAllAreas();
+                this.restorePreviousScreen();
+                this.updateSettingsButtonState(false);
+            } else {
+                // Settings is closed, open it and save current screen
+                this.previousScreen = this.getCurrentVisibleScreen();
+                this.showSettings();
+                this.updateSettingsButtonState(true);
+            }
         });
 
         this.settingsBackBtn.addEventListener('click', () => {
             this.hideAllAreas();
             this.dropZone.style.display = 'block';
+            this.updateSettingsButtonState(false);
         });
 
         this.browseOutputDir.addEventListener('click', async () => {
@@ -446,6 +459,8 @@ class AudifyApp {
         this.resultArea.style.display = 'none';
         this.errorArea.style.display = 'none';
         this.settingsArea.style.display = 'none';
+        // Remove settings-visible class when hiding all areas
+        document.body.classList.remove('settings-visible');
     }
 
     resetToInitialState() {
@@ -687,6 +702,104 @@ class AudifyApp {
     showSettings() {
         this.hideAllAreas();
         this.settingsArea.style.display = 'block';
+        // Add settings-visible class when showing settings
+        document.body.classList.add('settings-visible');
+    }
+
+    getCurrentVisibleScreen() {
+        if (this.dropZone.style.display !== 'none') {
+            return 'main';
+        }
+        if (this.queueArea.style.display !== 'none') {
+            return 'queue';
+        }
+        if (this.resultArea.style.display !== 'none') {
+            return 'result';
+        }
+        if (this.errorArea.style.display !== 'none') {
+            return 'error';
+        }
+        if (this.settingsArea.style.display !== 'none') {
+            return 'settings';
+        }
+        // Default fallback
+        return 'main';
+    }
+
+    isSettingsVisible() {
+        return this.settingsArea.style.display !== 'none';
+    }
+
+    toggleSettings() {
+        if (this.isSettingsVisible()) {
+            // Settings is open, close it and restore previous screen
+            this.hideAllAreas();
+            this.restorePreviousScreen();
+        } else {
+            // Settings is closed, open it and save current screen
+            this.previousScreen = this.getCurrentVisibleScreen();
+            this.showSettings();
+        }
+    }
+
+    restorePreviousScreen() {
+        try {
+            // Validate previous screen state
+            const validScreens = ['main', 'queue', 'result', 'error'];
+            if (!validScreens.includes(this.previousScreen)) {
+                console.warn(`Invalid previous screen state: ${this.previousScreen}, falling back to main`);
+                this.previousScreen = 'main';
+            }
+
+            switch (this.previousScreen) {
+                case 'main':
+                    this.dropZone.style.display = 'block';
+                    break;
+                case 'queue':
+                    // Validate that queue area exists and has content
+                    if (this.queueArea && this.fileQueue.length > 0) {
+                        this.queueArea.style.display = 'block';
+                    } else {
+                        // Fallback to main if queue is empty or invalid
+                        this.dropZone.style.display = 'block';
+                    }
+                    break;
+                case 'result':
+                    // Validate that result area exists
+                    if (this.resultArea) {
+                        this.resultArea.style.display = 'block';
+                    } else {
+                        this.dropZone.style.display = 'block';
+                    }
+                    break;
+                case 'error':
+                    // Validate that error area exists
+                    if (this.errorArea) {
+                        this.errorArea.style.display = 'block';
+                    } else {
+                        this.dropZone.style.display = 'block';
+                    }
+                    break;
+                default:
+                    // Final fallback to main screen
+                    this.dropZone.style.display = 'block';
+                    break;
+            }
+        } catch (error) {
+            console.error('Error restoring previous screen:', error);
+            // Emergency fallback to main screen
+            this.hideAllAreas();
+            this.dropZone.style.display = 'block';
+            this.previousScreen = 'main';
+        }
+    }
+
+    updateSettingsButtonState(isActive) {
+        if (isActive) {
+            this.settingsBtn.classList.add('active');
+        } else {
+            this.settingsBtn.classList.remove('active');
+        }
     }
 
     // Updated file handling for multiple video formats
