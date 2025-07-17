@@ -180,6 +180,7 @@ class AudifyApp {
                 if (this.currentFileIndex >= 0 && this.currentFileIndex < this.fileQueue.length) {
                     this.fileQueue[this.currentFileIndex].progress = percentage;
                     this.updateQueueDisplay();
+                    this.updateOverallProgress();
                 }
             }
         });
@@ -225,6 +226,7 @@ class AudifyApp {
         currentFile.status = 'processing';
 
         this.updateQueueDisplay();
+        this.updateOverallProgress();
 
         try {
             const options = this.getExtractionOptions();
@@ -242,6 +244,7 @@ class AudifyApp {
         }
 
         this.updateQueueDisplay();
+        this.updateOverallProgress();
         this.isProcessing = false;
 
         // Auto-process next file if available
@@ -264,6 +267,7 @@ class AudifyApp {
         }
 
         this.updateQueueDisplay();
+        this.updateOverallProgress();
         this.isProcessing = false;
         this.updateNavigationButtons();
 
@@ -293,6 +297,7 @@ class AudifyApp {
         this.hideAllAreas();
         this.queueArea.style.display = 'block';
         this.updateQueueDisplay();
+        this.updateOverallProgress();
     }
 
     updateQueueDisplay() {
@@ -443,8 +448,42 @@ class AudifyApp {
     }
 
     updateProgress(percentage) {
-        this.progressFill.style.width = `${percentage}%`;
-        this.progressText.textContent = `${percentage}%`;
+        // This method is now used for individual file progress within queue items
+        // Overall queue progress is handled by updateOverallProgress()
+        if (this.currentFileIndex >= 0 && this.currentFileIndex < this.fileQueue.length) {
+            this.fileQueue[this.currentFileIndex].progress = percentage;
+        }
+    }
+
+    updateOverallProgress() {
+        const progressFill = document.getElementById('progressFill');
+        const progressText = document.getElementById('progressText');
+
+        if (!progressFill || !progressText) return;
+
+        if (this.fileQueue.length === 0) {
+            progressFill.style.width = '0%';
+            progressText.textContent = '0%';
+            return;
+        }
+
+        const completedFiles = this.fileQueue.filter(file =>
+            file.status === 'completed' || file.status === 'error'
+        ).length;
+
+        // Add partial progress for currently processing file
+        let totalProgress = completedFiles;
+        if (this.currentFileIndex >= 0 && this.currentFileIndex < this.fileQueue.length) {
+            const currentFile = this.fileQueue[this.currentFileIndex];
+            if (currentFile.status === 'processing' && currentFile.progress) {
+                totalProgress += (currentFile.progress / 100);
+            }
+        }
+
+        const progressPercentage = Math.round((totalProgress / this.fileQueue.length) * 100);
+
+        progressFill.style.width = `${progressPercentage}%`;
+        progressText.textContent = `${progressPercentage}% (${completedFiles}/${this.fileQueue.length})`;
     }
 
     showError(errorText) {
