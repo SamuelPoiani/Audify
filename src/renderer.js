@@ -217,17 +217,57 @@ class AudifyApp {
     }
 
     hasVideoFiles(dataTransfer) {
-        if (!dataTransfer || !dataTransfer.items) return false;
+        if (!dataTransfer) return false;
         
-        for (let i = 0; i < dataTransfer.items.length; i++) {
-            const item = dataTransfer.items[i];
-            if (item.kind === 'file') {
-                const file = item.getAsFile();
-                if (file && this.isValidVideoFile(file.name)) {
+        // Try to check actual files first (most accurate when available)
+        if (dataTransfer.files && dataTransfer.files.length > 0) {
+            for (let i = 0; i < dataTransfer.files.length; i++) {
+                const file = dataTransfer.files[i];
+                if (file.name && this.isValidVideoFile(file.name)) {
+                    return true;
+                }
+                // Also check MIME type for video files
+                if (file.type && file.type.startsWith('video/')) {
                     return true;
                 }
             }
+            // If we have files but none are video files, return false
+            return false;
         }
+        
+        // Check items with MIME type validation
+        if (dataTransfer.items && dataTransfer.items.length > 0) {
+            let hasFiles = false;
+            for (let i = 0; i < dataTransfer.items.length; i++) {
+                const item = dataTransfer.items[i];
+                if (item.kind === 'file') {
+                    hasFiles = true;
+                    // Check MIME type if available
+                    if (item.type && item.type.startsWith('video/')) {
+                        return true;
+                    }
+                    // Try to get file for name-based validation
+                    try {
+                        const file = item.getAsFile();
+                        if (file && file.name && this.isValidVideoFile(file.name)) {
+                            return true;
+                        }
+                    } catch (e) {
+                        // getAsFile() might fail during dragenter/dragover
+                        // Continue checking other items
+                    }
+                }
+            }
+            // If we have files but couldn't validate any as video, be conservative
+            return hasFiles ? false : false;
+        }
+        
+        // Last resort: check for generic file types (least reliable)
+        if (dataTransfer.types && dataTransfer.types.includes('Files')) {
+            // We know there are files but can't validate them - be optimistic
+            return true;
+        }
+        
         return false;
     }
 
@@ -344,25 +384,52 @@ class AudifyApp {
 
     extractVideoFiles(dataTransfer) {
         const files = [];
-        if (dataTransfer && dataTransfer.items) {
+        
+        if (!dataTransfer) return files;
+        
+        // Try to extract file info from items (during drop this works better)
+        if (dataTransfer.items && dataTransfer.items.length > 0) {
             for (let i = 0; i < dataTransfer.items.length; i++) {
                 const item = dataTransfer.items[i];
                 if (item.kind === 'file') {
-                    const file = item.getAsFile();
-                    if (file && this.isValidVideoFile(file.name)) {
+                    try {
+                        const file = item.getAsFile();
+                        if (file) {
+                            files.push({
+                                name: file.name,
+                                valid: this.isValidVideoFile(file.name)
+                            });
+                        }
+                    } catch (e) {
+                        // During dragenter/dragover, getAsFile() might fail
+                        // Add a placeholder file entry
                         files.push({
-                            name: file.name,
-                            valid: true
-                        });
-                    } else if (file) {
-                        files.push({
-                            name: file.name,
-                            valid: false
+                            name: `File ${i + 1}`,
+                            valid: true // Assume valid until we can verify
                         });
                     }
                 }
             }
         }
+        
+        // Fallback: if we can't get items, create placeholder entries based on file count
+        if (files.length === 0 && dataTransfer.files && dataTransfer.files.length > 0) {
+            for (let i = 0; i < dataTransfer.files.length; i++) {
+                files.push({
+                    name: dataTransfer.files[i].name || `File ${i + 1}`,
+                    valid: this.isValidVideoFile(dataTransfer.files[i].name || '')
+                });
+            }
+        }
+        
+        // Last resort: if we know there are files but can't access them
+        if (files.length === 0 && (dataTransfer.types && dataTransfer.types.includes('Files'))) {
+            files.push({
+                name: 'Dragged files',
+                valid: true
+            });
+        }
+        
         return files;
     }
 
