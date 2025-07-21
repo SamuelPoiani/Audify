@@ -49,6 +49,11 @@ export class DragDropHandler {
         document.addEventListener('dragstart', (e) => {
             e.preventDefault();
         });
+
+        document.addEventListener('dragend', (e) => {
+            e.preventDefault();
+            this.resetDragState();
+        });
     }
 
     setupDropZoneListeners() {
@@ -280,5 +285,18 @@ export class DragDropHandler {
             
             this.uiManager.elements.dragFileList.appendChild(fileItem);
         });
+    }
+
+    resetDragState() {
+        this.isDragging = false;
+        this.dragCounter = 0;
+        this.currentDragFiles = [];
+        
+        document.body.classList.remove('dragging-files');
+        this.hideDragOverlay();
+        
+        if (this.uiManager.elements.dropZone) {
+            this.uiManager.elements.dropZone.classList.remove('global-drag-active', 'drag-over');
+        }
     }
 }
