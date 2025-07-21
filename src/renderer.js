@@ -10,6 +10,7 @@ class AudifyApp {
 
         this.initializeElements();
         this.setupEventListeners();
+        this.setupGlobalDragListeners();
         this.setupElectronListeners();
         this.setupWindowControls();
         this.setupNavigation();
@@ -59,6 +60,18 @@ class AudifyApp {
         this.overwriteFiles = document.getElementById('overwriteFiles');
         this.resetSettings = document.getElementById('resetSettings');
         this.saveSettings = document.getElementById('saveSettings');
+
+        // Global drag overlay elements
+        this.dragOverlay = document.getElementById('dragOverlay');
+        this.dragTitle = document.getElementById('dragTitle');
+        this.dragFileCount = document.getElementById('dragFileCount');
+        this.dragFileList = document.getElementById('dragFileList');
+        this.dragActionText = document.getElementById('dragActionText');
+
+        // Global drag state
+        this.isDragging = false;
+        this.dragCounter = 0;
+        this.currentDragFiles = [];
     }
 
     setupEventListeners() {
@@ -71,43 +84,31 @@ class AudifyApp {
 
         this.dropZone.addEventListener('dragover', (e) => {
             e.preventDefault();
-            this.dropZone.classList.add('drag-over');
+            e.stopPropagation();
+            
+            // Only add drop zone specific styling if we're dragging over it specifically
+            if (this.isDragging && e.target.closest('.drop-zone')) {
+                this.dropZone.classList.add('drag-over');
+            }
         });
 
         this.dropZone.addEventListener('dragleave', (e) => {
             e.preventDefault();
-            this.dropZone.classList.remove('drag-over');
+            e.stopPropagation();
+            
+            // Only remove drop zone styling if we're leaving the drop zone area
+            if (!e.target.closest('.drop-zone') || !this.dropZone.contains(e.relatedTarget)) {
+                this.dropZone.classList.remove('drag-over');
+            }
         });
 
         this.dropZone.addEventListener('drop', async (e) => {
             e.preventDefault();
+            e.stopPropagation();
             this.dropZone.classList.remove('drag-over');
-
-            const files = Array.from(e.dataTransfer.files);
-            const videoFiles = files.filter(file => this.isValidVideoFile(file.name));
-
-            if (videoFiles.length > 0) {
-                console.log('Dropped files:', videoFiles);
-
-                const filePaths = [];
-                for (const videoFile of videoFiles) {
-                    const filePath = window.electronAPI.getPathForFile(videoFile);
-                    if (filePath && filePath.trim() !== '') {
-                        filePaths.push(filePath);
-                    }
-                }
-
-                if (filePaths.length > 0) {
-                    console.log('Using file paths:', filePaths);
-                    this.handleMultipleFiles(filePaths);
-                } else {
-                    console.error('Could not get file paths from webUtils');
-                    window.electronAPI.showError('Drag & Drop Error',
-                        'Could not access the file paths. Please try using the "click to select" option instead.');
-                }
-            } else {
-                window.electronAPI.showError('Invalid Files', 'Please select video files (MP4, MKV, AVI, MOV, WMV, FLV, WebM, M4V, 3GP, OGV).');
-            }
+            
+            // Let the global drop handler take care of the file processing
+            // This prevents duplicate handling while maintaining drop zone specific feedback
         });
 
         this.extractAnother.addEventListener('click', () => {
@@ -167,6 +168,250 @@ class AudifyApp {
 
         this.outputFormat.addEventListener('change', (e) => {
             e.stopPropagation();
+        });
+    }
+
+    setupGlobalDragListeners() {
+        // Global drag enter - track when files enter the app
+        document.addEventListener('dragenter', (e) => {
+            e.preventDefault();
+            this.dragCounter++;
+            
+            if (this.dragCounter === 1 && this.hasVideoFiles(e.dataTransfer)) {
+                this.handleGlobalDragEnter(e);
+            }
+        });
+
+        // Global drag over - update drag state
+        document.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            if (this.isDragging && this.hasVideoFiles(e.dataTransfer)) {
+                this.handleGlobalDragOver(e);
+            }
+        });
+
+        // Global drag leave - track when files leave the app
+        document.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            this.dragCounter--;
+            
+            if (this.dragCounter === 0) {
+                this.handleGlobalDragLeave(e);
+            }
+        });
+
+        // Global drop - handle file drops anywhere in the app
+        document.addEventListener('drop', (e) => {
+            e.preventDefault();
+            this.dragCounter = 0;
+            
+            if (this.isDragging) {
+                this.handleGlobalDrop(e);
+            }
+        });
+
+        // Prevent default drag behaviors on specific elements
+        document.addEventListener('dragstart', (e) => {
+            e.preventDefault();
+        });
+    }
+
+    hasVideoFiles(dataTransfer) {
+        if (!dataTransfer || !dataTransfer.items) return false;
+        
+        for (let i = 0; i < dataTransfer.items.length; i++) {
+            const item = dataTransfer.items[i];
+            if (item.kind === 'file') {
+                const file = item.getAsFile();
+                if (file && this.isValidVideoFile(file.name)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    handleGlobalDragEnter(e) {
+        this.isDragging = true;
+        this.currentDragFiles = this.extractVideoFiles(e.dataTransfer);
+        
+        document.body.classList.add('dragging-files');
+        this.showDragOverlay();
+        this.updateDragOverlayContent();
+        
+        // Add visual feedback to drop zone if visible
+        if (this.dropZone.style.display !== 'none') {
+            this.dropZone.classList.add('global-drag-active');
+        }
+    }
+
+    handleGlobalDragOver(e) {
+        // Update drag overlay position or content if needed
+        this.updateDragOverlayContent();
+    }
+
+    handleGlobalDragLeave(e) {
+        this.isDragging = false;
+        this.currentDragFiles = [];
+        
+        document.body.classList.remove('dragging-files');
+        this.hideDragOverlay();
+        
+        // Remove visual feedback from drop zone
+        if (this.dropZone) {
+            this.dropZone.classList.remove('global-drag-active');
+        }
+    }
+
+    handleGlobalDrop(e) {
+        this.isDragging = false;
+        document.body.classList.remove('dragging-files');
+        this.hideDragOverlay();
+        
+        // Remove visual feedback
+        if (this.dropZone) {
+            this.dropZone.classList.remove('global-drag-active', 'drag-over');
+        }
+        
+        const files = Array.from(e.dataTransfer.files);
+        const videoFiles = files.filter(file => this.isValidVideoFile(file.name));
+        
+        if (videoFiles.length > 0) {
+            const filePaths = [];
+            for (const videoFile of videoFiles) {
+                const filePath = window.electronAPI.getPathForFile(videoFile);
+                if (filePath && filePath.trim() !== '') {
+                    filePaths.push(filePath);
+                }
+            }
+            
+            if (filePaths.length > 0) {
+                this.handleGlobalFileDrop(filePaths);
+            } else {
+                window.electronAPI.showError('Drag & Drop Error',
+                    'Could not access the file paths. Please try using the "click to select" option instead.');
+            }
+        }
+    }
+
+    handleGlobalFileDrop(filePaths) {
+        const currentScreen = this.getCurrentVisibleScreen();
+        
+        if (currentScreen === 'queue' && this.fileQueue.length > 0) {
+            // Add files to existing queue
+            this.addFilesToQueue(filePaths);
+        } else {
+            // Create new queue or replace current
+            this.handleMultipleFiles(filePaths);
+        }
+        
+        // Navigate to queue screen if not already there
+        if (currentScreen !== 'queue') {
+            this.showQueue();
+        }
+    }
+
+    addFilesToQueue(filePaths) {
+        const validFiles = filePaths.filter(path => this.isValidVideoFile(path));
+        
+        if (validFiles.length === 0) {
+            return;
+        }
+        
+        const newFiles = validFiles.map(filePath => ({
+            path: filePath,
+            name: filePath.split(/[\\/]/).pop(),
+            status: 'pending',
+            progress: 0
+        }));
+        
+        // Add to the end of the queue
+        this.fileQueue.push(...newFiles);
+        
+        this.addToHistory('queue-updated', `Added ${newFiles.length} files to queue`);
+        this.updateQueueDisplay();
+        this.updateOverallProgress();
+        
+        // Start processing if not currently processing
+        if (!this.isProcessing && this.currentFileIndex < 0) {
+            this.currentFileIndex = this.fileQueue.findIndex(file => file.status === 'pending');
+            if (this.currentFileIndex >= 0) {
+                this.updateNavigationButtons();
+                this.processCurrentFile();
+            }
+        }
+    }
+
+    extractVideoFiles(dataTransfer) {
+        const files = [];
+        if (dataTransfer && dataTransfer.items) {
+            for (let i = 0; i < dataTransfer.items.length; i++) {
+                const item = dataTransfer.items[i];
+                if (item.kind === 'file') {
+                    const file = item.getAsFile();
+                    if (file && this.isValidVideoFile(file.name)) {
+                        files.push({
+                            name: file.name,
+                            valid: true
+                        });
+                    } else if (file) {
+                        files.push({
+                            name: file.name,
+                            valid: false
+                        });
+                    }
+                }
+            }
+        }
+        return files;
+    }
+
+    showDragOverlay() {
+        this.dragOverlay.style.display = 'flex';
+    }
+
+    hideDragOverlay() {
+        this.dragOverlay.style.display = 'none';
+    }
+
+    updateDragOverlayContent() {
+        const validFiles = this.currentDragFiles.filter(f => f.valid);
+        const invalidFiles = this.currentDragFiles.filter(f => !f.valid);
+        const totalFiles = this.currentDragFiles.length;
+        
+        if (validFiles.length === 0 && invalidFiles.length > 0) {
+            this.dragTitle.textContent = 'Invalid file types';
+            this.dragFileCount.textContent = `${totalFiles} file${totalFiles !== 1 ? 's' : ''} (none supported)`;
+            this.dragActionText.textContent = 'Only video files are supported';
+            this.dragActionText.className = 'drag-action-hint';
+        } else if (validFiles.length > 0) {
+            this.dragTitle.textContent = `Drop ${validFiles.length} video file${validFiles.length !== 1 ? 's' : ''}`;
+            this.dragFileCount.textContent = `${validFiles.length} of ${totalFiles} file${totalFiles !== 1 ? 's' : ''} supported`;
+            
+            const currentScreen = this.getCurrentVisibleScreen();
+            if (currentScreen === 'queue' && this.fileQueue.length > 0) {
+                this.dragActionText.textContent = 'Files will be added to the current queue';
+                this.dragActionText.className = 'drag-action-hint queue-merge';
+            } else {
+                this.dragActionText.textContent = 'Files will create a new processing queue';
+                this.dragActionText.className = 'drag-action-hint new-queue';
+            }
+        }
+        
+        // Update file list
+        this.dragFileList.innerHTML = '';
+        this.currentDragFiles.forEach(file => {
+            const fileItem = document.createElement('div');
+            fileItem.className = `drag-file-item ${file.valid ? 'valid' : 'invalid'}`;
+            
+            fileItem.innerHTML = `
+                <div class="drag-file-name">${file.name}</div>
+                <div class="drag-file-status ${file.valid ? 'valid' : 'invalid'}">
+                    ${file.valid ? 'Valid' : 'Invalid'}
+                </div>
+            `;
+            
+            this.dragFileList.appendChild(fileItem);
         });
     }
 

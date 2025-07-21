@@ -220,6 +220,29 @@
         </footer>
     </div>
 
+    <!-- Global Drag Overlay -->
+    <div id="dragOverlay" class="drag-overlay" style="display: none;">
+        <div class="drag-overlay-content">
+            <div class="drag-icon">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+                    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <polyline points="14,2 14,8 20,8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <line x1="12" y1="18" x2="12" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    <line x1="9" y1="15" x2="12" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    <line x1="15" y1="15" x2="12" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+            </div>
+            <div class="drag-message">
+                <h3 id="dragTitle">Drop video files to add to queue</h3>
+                <div id="dragFileCount" class="drag-file-count"></div>
+                <div id="dragFileList" class="drag-file-list"></div>
+            </div>
+            <div class="drag-action-hint">
+                <p id="dragActionText">Files will be added to the processing queue</p>
+            </div>
+        </div>
+    </div>
+
     <script src="renderer.js"></script>
 </body>
 </html>
