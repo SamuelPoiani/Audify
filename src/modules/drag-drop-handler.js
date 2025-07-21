@@ -5,7 +5,6 @@ export class DragDropHandler {
         this.onFileDrop = onFileDrop;
         
         this.isDragging = false;
-        this.dragCounter = 0;
         this.currentDragFiles = [];
         
         this.setupGlobalDragListeners();
@@ -14,9 +13,8 @@ export class DragDropHandler {
     setupGlobalDragListeners() {
         document.addEventListener('dragenter', (e) => {
             e.preventDefault();
-            this.dragCounter++;
             
-            if (this.dragCounter === 1 && this.hasVideoFiles(e.dataTransfer)) {
+            if (!this.isDragging && this.hasVideoFiles(e.dataTransfer)) {
                 this.handleGlobalDragEnter(e);
             }
         });
@@ -30,16 +28,15 @@ export class DragDropHandler {
 
         document.addEventListener('dragleave', (e) => {
             e.preventDefault();
-            this.dragCounter--;
             
-            if (this.dragCounter === 0) {
+            // Check if we're leaving the window entirely
+            if (!e.relatedTarget || !document.documentElement.contains(e.relatedTarget)) {
                 this.handleGlobalDragLeave(e);
             }
         });
 
         document.addEventListener('drop', (e) => {
             e.preventDefault();
-            this.dragCounter = 0;
             
             if (this.isDragging) {
                 this.handleGlobalDrop(e);
@@ -48,11 +45,6 @@ export class DragDropHandler {
 
         document.addEventListener('dragstart', (e) => {
             e.preventDefault();
-        });
-
-        document.addEventListener('dragend', (e) => {
-            e.preventDefault();
-            this.resetDragState();
         });
     }
 
@@ -289,7 +281,6 @@ export class DragDropHandler {
 
     resetDragState() {
         this.isDragging = false;
-        this.dragCounter = 0;
         this.currentDragFiles = [];
         
         document.body.classList.remove('dragging-files');
