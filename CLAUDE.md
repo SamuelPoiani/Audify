@@ -19,11 +19,40 @@ Note: There are currently no test commands configured in package.json.
 
 ## Architecture
 
+### Project Structure
+```
+src/
+├── main.js              # Electron main process
+├── preload.js           # Secure IPC bridge
+├── renderer.js          # Main application orchestrator (ES module)
+├── index.html           # Application UI
+├── styles.css           # Application styling
+└── modules/             # Modular components (ES modules)
+    ├── ui-manager.js           # UI element management & screen switching
+    ├── drag-drop-handler.js    # Global drag & drop functionality
+    ├── file-queue-manager.js   # Queue processing & progress tracking
+    ├── settings-manager.js     # Settings persistence & management
+    ├── navigation-manager.js   # History tracking & navigation
+    ├── event-handlers.js       # Event binding & Electron IPC
+    └── file-utils.js           # File validation & utility functions
+```
+
 ### Core Components
 - **Main Process** (`src/main.js`): Electron main process handling window management, IPC handlers for file selection, audio extraction via FFmpeg, and window controls
-- **Renderer Process** (`src/renderer.js`): Single-page application class `AudifyApp` managing UI state, batch processing queue, progress tracking, and settings persistence
+- **Renderer Process** (`src/renderer.js`): Modular application orchestrator managing component initialization and coordination (reduced from 1,195 to 89 lines)
 - **Preload Script** (`src/preload.js`): Secure IPC bridge exposing electron APIs to renderer via `contextBridge`
 - **UI** (`src/index.html` + `src/styles.css`): Dark-themed interface with drag-drop support, progress indicators, and settings panel
+
+### Modular Architecture
+The renderer process is now organized into focused modules for better maintainability:
+
+- **UIManager**: Handles element initialization, screen visibility, and window controls
+- **DragDropHandler**: Manages global drag & drop operations and visual feedback overlays
+- **FileQueueManager**: Controls batch processing, progress tracking, and queue display
+- **SettingsManager**: Handles settings persistence, validation, and UI synchronization
+- **NavigationManager**: Manages application history and back/forward navigation
+- **EventHandlers**: Coordinates UI events and Electron IPC communication
+- **FileUtils**: Provides file validation, format checking, and utility functions
 
 ### Security Model
 - Context isolation enabled
