@@ -125,6 +125,8 @@ export class DragDropHandler {
         this.isDragging = true;
         this.currentDragFiles = this.extractVideoFiles(e.dataTransfer);
         
+        console.log('Drag enter - detected files:', this.currentDragFiles.length, this.currentDragFiles);
+        
         document.body.classList.add('dragging-files');
         this.showDragOverlay();
         this.updateDragOverlayContent();
@@ -222,10 +224,23 @@ export class DragDropHandler {
         }
         
         if (files.length === 0 && (dataTransfer.types && dataTransfer.types.includes('Files'))) {
-            files.push({
-                name: 'Dragged files',
-                valid: true
-            });
+            // Try to get file count from dataTransfer.files or items
+            let fileCount = 0;
+            if (dataTransfer.files && dataTransfer.files.length > 0) {
+                fileCount = dataTransfer.files.length;
+            } else if (dataTransfer.items && dataTransfer.items.length > 0) {
+                fileCount = Array.from(dataTransfer.items).filter(item => item.kind === 'file').length;
+            } else {
+                fileCount = 1; // Fallback
+            }
+            
+            // Create individual entries for each file
+            for (let i = 0; i < fileCount; i++) {
+                files.push({
+                    name: `File ${i + 1}`,
+                    valid: true // Assume valid since we can't check during drag
+                });
+            }
         }
         
         return files;
@@ -243,6 +258,8 @@ export class DragDropHandler {
         const validFiles = this.currentDragFiles.filter(f => f.valid);
         const invalidFiles = this.currentDragFiles.filter(f => !f.valid);
         const totalFiles = this.currentDragFiles.length;
+        
+        console.log('Update overlay - total:', totalFiles, 'valid:', validFiles.length, 'invalid:', invalidFiles.length);
         
         if (validFiles.length === 0 && invalidFiles.length > 0) {
             this.uiManager.elements.dragTitle.textContent = 'Invalid file types';
